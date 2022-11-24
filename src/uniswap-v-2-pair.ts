@@ -1,84 +1,51 @@
-import { BigInt } from "@graphprotocol/graph-ts"
-import {
-  UniswapV2Pair,
-  Approval,
-  Burn,
-  Mint,
-  Swap,
-  Sync,
-  Transfer
-} from "../generated/UniswapV2Pair/UniswapV2Pair"
-import { ExampleEntity } from "../generated/schema"
+import { BigInt, Bytes } from "@graphprotocol/graph-ts";
+import { concat } from "@graphprotocol/graph-ts/helper-functions";
+import { Swap } from "../generated/UniswapV2Pair/UniswapV2Pair";
+import { Candle } from "../generated/schema";
 
-export function handleApproval(event: Approval): void {
-  // Entities can be loaded from the store using a string ID; this ID
-  // needs to be unique across all entities of the same type
-  let entity = ExampleEntity.load(event.transaction.from.toHex())
-
-  // Entities only exist after they have been saved to the store;
-  // `null` checks allow to create entities on demand
-  if (!entity) {
-    entity = new ExampleEntity(event.transaction.from.toHex())
-
-    // Entity fields can be set using simple assignments
-    entity.count = BigInt.fromI32(0)
+export function handleSwap(event: Swap): void {
+  let token0Amount: BigInt = event.params.amount0In
+    .minus(event.params.amount0Out)
+    .abs();
+  let token1Amount: BigInt = event.params.amount1Out
+    .minus(event.params.amount1In)
+    .abs();
+  if (token0Amount.isZero() || token1Amount.isZero()) {
+    return;
   }
 
-  // BigInt and BigDecimal math are supported
-  entity.count = entity.count + BigInt.fromI32(1)
+  let price = token0Amount.divDecimal(token1Amount.toBigDecimal());
+  let timestamp = event.block.timestamp.toI32();
 
-  // Entity fields can be set based on event parameters
-  entity.owner = event.params.owner
-  entity.spender = event.params.spender
+  let periods: i32[] = [5 * 60, 15 * 60, 60 * 60, 4 * 60 * 60, 24 * 60 * 60];
+  for (let i = 0; i < periods.length; i++) {
+    let time_id = timestamp / periods[i];
+    let candle_id = concat(
+      concat(Bytes.fromI32(time_id), Bytes.fromI32(periods[i])),
+      event.address
+    ).toHex();
+    let candle = Candle.load(candle_id);
+    if (candle === null) {
+      candle = new Candle(candle_id);
+      candle.t = timestamp;
+      candle.period = periods[i];
+      candle.o = price;
+      candle.l = price;
+      candle.h = price;
+      candle.v0 = BigInt.fromI32(0);
+      candle.v1 = BigInt.fromI32(0);
+    } else {
+      if (price < candle.l) {
+        candle.l = price;
+      }
+      if (price > candle.h) {
+        candle.h = price;
+      }
+    }
 
-  // Entities can be written to the store with `.save()`
-  entity.save()
-
-  // Note: If a handler doesn't require existing field values, it is faster
-  // _not_ to load the entity from the store. Instead, create it fresh with
-  // `new Entity(...)`, set the fields that should be updated and save the
-  // entity back to the store. Fields that were not set or unset remain
-  // unchanged, allowing for partial updates to be applied.
-
-  // It is also possible to access smart contracts from mappings. For
-  // example, the contract that has emitted the event can be connected to
-  // with:
-  //
-  // let contract = Contract.bind(event.address)
-  //
-  // The following functions can then be called on this contract to access
-  // state variables and other data:
-  //
-  // - contract.DOMAIN_SEPARATOR(...)
-  // - contract.MINIMUM_LIQUIDITY(...)
-  // - contract.PERMIT_TYPEHASH(...)
-  // - contract.allowance(...)
-  // - contract.approve(...)
-  // - contract.balanceOf(...)
-  // - contract.burn(...)
-  // - contract.decimals(...)
-  // - contract.factory(...)
-  // - contract.getReserves(...)
-  // - contract.kLast(...)
-  // - contract.mint(...)
-  // - contract.name(...)
-  // - contract.nonces(...)
-  // - contract.price0CumulativeLast(...)
-  // - contract.price1CumulativeLast(...)
-  // - contract.symbol(...)
-  // - contract.token0(...)
-  // - contract.token1(...)
-  // - contract.totalSupply(...)
-  // - contract.transfer(...)
-  // - contract.transferFrom(...)
+    candle.c = price;
+    candle.v0 = candle.v0.plus(token0Amount);
+    candle.v1 = candle.v1.plus(token1Amount);
+    candle.save();
+  }
 }
-
-export function handleBurn(event: Burn): void {}
-
-export function handleMint(event: Mint): void {}
-
-export function handleSwap(event: Swap): void {}
-
-export function handleSync(event: Sync): void {}
-
-export function handleTransfer(event: Transfer): void {}
