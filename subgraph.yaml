@@ -8,7 +8,7 @@ dataSources:
     source:
       address: "0xdb995f975f1bfc3b2157495c47e4efb31196b2ca"
       abi: UniswapV2Pair
-      startBlock: 20000000
+      startBlock: 24782864
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.6

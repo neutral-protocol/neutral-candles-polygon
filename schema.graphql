@@ -1,9 +1,3 @@
-type Pair @entity {
-    id: ID! # address
-    token0: Bytes!
-    token1: Bytes!
-}
-
 type Candle @entity {
     id: ID! # time + period + srcToken + dstToken
     period: Int!
@@ -14,7 +8,7 @@ type Candle @entity {
     h: BigDecimal!
     l: BigDecimal!
     c: BigDecimal!
-    
-    v0: BigInt!
-    v1: BigInt!
+
+    v0: BigDecimal!
+    v1: BigDecimal!
 }
