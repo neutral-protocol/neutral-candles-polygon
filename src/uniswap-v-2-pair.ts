@@ -20,7 +20,7 @@ export function handleSwap(event: Swap): void {
   let token1Amount: BigDecimal = event.params.amount1Out
     .minus(event.params.amount1In)
     .abs()
-    .divDecimal(exponentToBigDecimal(token0Decimals));
+    .divDecimal(exponentToBigDecimal(token1Decimals));
 
   let price = token0Amount.div(token1Amount);
   let timestamp = event.block.timestamp.toI32();
